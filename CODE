@@ -1,0 +1,170 @@
+/*
+ * Copyright (C) 2022 Priyansh Bhaduri <priyanshbhaduriuni@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <Arduino.h> 
+#include <LiquidCrystal_I2C.h>
+
+// Initialize the LCD with I2C address 0x27, 16 characters wide, 2 rows high
+LiquidCrystal_I2C lcd (0x27, 16, 2);
+
+// Motor Driver Control Pins (for pumps)
+// IN1 and IN2 are already used, adding IN3 and IN4
+int IN1 = 2; // Plant 1 Pump Control
+int IN2 = 3; // Plant 2 Pump Control
+int IN3 = 4; // Plant 3 Pump Control
+int IN4 = 5; // Plant 4 Pump Control
+
+// Analog Input Pins for Moisture Sensors
+int Pin1 = A0; // Plant 1 Sensor
+int Pin2 = A1; // Plant 2 Sensor
+int Pin3 = A2; // Plant 3 Sensor
+int Pin4 = A3; // Plant 4 Sensor
+ 
+// Variables to store sensor readings
+float sensor1Value = 0;
+float sensor2Value = 0;
+float sensor3Value = 0; 
+float sensor4Value = 0; 
+
+// Define the threshold for dryness (readings > 420 mean the soil is too dry)
+const int MOISTURE_THRESHOLD = 420;
+
+void setup() {
+  // Initialize Serial communication for debugging
+  Serial.begin(9600);
+
+  // Initialize the LCD
+  lcd.init();                   
+  lcd.backlight();
+  lcd.setCursor(0,0);
+  lcd.print("4-Plant Monitor!");
+  lcd.setCursor(0,1);
+  lcd.print("Initializing...");
+  
+  // Set all motor control pins as OUTPUT
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT); 
+  pinMode(IN4, OUTPUT); 
+
+  // Set all sensor pins as INPUT
+  pinMode(Pin1, INPUT);
+  pinMode(Pin2, INPUT);
+  pinMode(Pin3, INPUT); 
+  pinMode(Pin4, INPUT);
+
+  // Initially turn off all pumps (Assuming HIGH turns off the pump for this motor driver)
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH); 
+  digitalWrite(IN4, HIGH);
+
+  delay(2000);
+}
+
+void loop() {
+  // --- READ SENSOR VALUES ---
+  sensor1Value = analogRead(Pin1);
+  sensor2Value = analogRead(Pin2);
+  sensor3Value = analogRead(Pin3); 
+  sensor4Value = analogRead(Pin4);
+
+  // --- SERIAL MONITOR OUTPUT ---
+  Serial.print("Plant 1: ");
+  Serial.print(sensor1Value);
+  Serial.print(" | Plant 2: ");
+  Serial.print(sensor2Value);
+  Serial.print(" | Plant 3: ");
+  Serial.print(sensor3Value);
+  Serial.print(" | Plant 4: ");
+  Serial.println(sensor4Value);
+  Serial.println("---------------------------------");
+
+
+  // --- PUMP CONTROL LOGIC (The lower the value, the wetter the soil) ---
+
+  // Plant 1
+  if (sensor1Value > MOISTURE_THRESHOLD) {
+    digitalWrite(IN1, LOW); // Turn ON pump 1 (to water)
+  } else {
+    digitalWrite(IN1, HIGH); // Turn OFF pump 1
+  }
+
+  // Plant 2
+  if (sensor2Value > MOISTURE_THRESHOLD) {
+    digitalWrite(IN2, LOW); // Turn ON pump 2 (to water)
+  } else {
+    digitalWrite(IN2, HIGH); // Turn OFF pump 2
+  }
+
+  // Plant 3 (New)
+  if (sensor3Value > MOISTURE_THRESHOLD) {
+    digitalWrite(IN3, LOW); // Turn ON pump 3 (to water)
+  } else {
+    digitalWrite(IN3, HIGH); // Turn OFF pump 3
+  }
+
+  // Plant 4 (New)
+  if (sensor4Value > MOISTURE_THRESHOLD) {
+    digitalWrite(IN4, LOW); // Turn ON pump 4 (to water)
+  } else {
+    digitalWrite(IN4, HIGH); // Turn OFF pump 4
+  }
+
+  // --- LCD OUTPUT (Displaying 4 values requires two screens on a 16x2 LCD) ---
+ 
+  // **Screen 1: Plants 1 & 2**
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("P1:"); // Plant 1
+  lcd.print((int)sensor1Value);
+  lcd.setCursor(8,0);
+  lcd.print("P2:"); // Plant 2
+  lcd.print((int)sensor2Value);
+  
+  lcd.setCursor(0,1);
+  lcd.print("P1 Status:");
+  // Display PUMP ON/OFF status
+  if (digitalRead(IN1) == LOW) {
+      lcd.print("ON");
+  } else {
+      lcd.print("OFF");
+  }
+
+  delay(2000); // Display Screen 1 for 2 seconds
+
+  // **Screen 2: Plants 3 & 4**
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("P3:"); // Plant 3
+  lcd.print((int)sensor3Value);
+  lcd.setCursor(8,0);
+  lcd.print("P4:"); // Plant 4
+  lcd.print((int)sensor4Value);
+
+  lcd.setCursor(0,1);
+  lcd.print("P3 Status:");
+  // Display PUMP ON/OFF status
+  if (digitalRead(IN3) == LOW) {
+      lcd.print("ON");
+  } else {
+      lcd.print("OFF");
+  }
+
+  delay(2000); // Display Screen 2 for 2 seconds
+
+}
